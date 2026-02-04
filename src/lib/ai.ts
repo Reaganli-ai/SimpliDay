@@ -220,9 +220,21 @@ Only return JSON starting with {`;
 
   let content = result.content;
 
-  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    content = jsonMatch[1].trim();
+  // Try multiple strategies to extract JSON
+  // 1. Code block wrapped
+  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    content = codeBlockMatch[1].trim();
+  }
+
+  // 2. If not valid JSON yet, try to find a JSON object in the text
+  try {
+    JSON.parse(content);
+  } catch {
+    const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      content = jsonObjectMatch[0];
+    }
   }
 
   try {
