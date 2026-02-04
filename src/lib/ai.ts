@@ -1,4 +1,4 @@
-import { AISuggestion, Entry } from '@/types';
+import { AISuggestion, Entry, UserProfile } from '@/types';
 
 interface ApiMessage {
   role: 'user' | 'assistant';
@@ -54,7 +54,8 @@ export async function chat(
   input: string,
   language: 'en' | 'zh',
   recentEntries?: Entry[],
-  conversationHistory?: ConversationMessage[]
+  conversationHistory?: ConversationMessage[],
+  userProfile?: UserProfile | null
 ): Promise<ChatResponse> {
   // 构建历史记录摘要
   let historyContext = '';
@@ -68,6 +69,27 @@ export async function chat(
       : `\n\nUser's recent confirmed records:\n${summary}\n\nPlease give personalized advice based on these records.`;
   }
 
+  // 用户画像
+  let profileContext = '';
+  if (userProfile) {
+    const parts: string[] = [];
+    if (userProfile.gender) parts.push(language === 'zh' ? `性别：${userProfile.gender === 'male' ? '男' : '女'}` : `Gender: ${userProfile.gender}`);
+    if (userProfile.age) parts.push(language === 'zh' ? `年龄：${userProfile.age}` : `Age: ${userProfile.age}`);
+    if (userProfile.height_cm) parts.push(language === 'zh' ? `身高：${userProfile.height_cm}cm` : `Height: ${userProfile.height_cm}cm`);
+    if (userProfile.weight_kg) parts.push(language === 'zh' ? `体重：${userProfile.weight_kg}kg` : `Weight: ${userProfile.weight_kg}kg`);
+    if (userProfile.goal) {
+      const goalMap = { lose: '减脂', maintain: '维持', gain: '增肌' };
+      parts.push(language === 'zh' ? `目标：${goalMap[userProfile.goal]}` : `Goal: ${userProfile.goal}`);
+    }
+    if (userProfile.tdee) parts.push(language === 'zh' ? `TDEE：${userProfile.tdee} kcal/天` : `TDEE: ${userProfile.tdee} kcal/day`);
+    if (userProfile.lifestyle) parts.push(language === 'zh' ? `生活状态：${userProfile.lifestyle}` : `Lifestyle: ${userProfile.lifestyle}`);
+    if (parts.length > 0) {
+      profileContext = language === 'zh'
+        ? `\n\n用户画像：\n${parts.join('，')}\n请根据用户画像给出更贴合的回复和建议。`
+        : `\n\nUser profile:\n${parts.join(', ')}\nGive responses tailored to this user's profile.`;
+    }
+  }
+
   // 当前时间信息
   const now = new Date();
   const currentHour = now.getHours();
@@ -77,7 +99,7 @@ export async function chat(
     : `\nCurrent time: ${now.toLocaleString('en-US')}${isLateNight ? '\nNote: It is early morning (0-3am). Activities mentioned may have happened yesterday. Please ask to confirm.' : ''}`;
 
   const systemPrompt = language === 'zh'
-    ? `你是健康助手 SimpliDay。帮用户记录健身、饮食、心情、能量数据。${timeInfo}${historyContext}
+    ? `你是健康助手 SimpliDay。帮用户记录健身、饮食、心情、能量数据。${timeInfo}${profileContext}${historyContext}
 
 规则：
 1. 用户提到不同类别的事，拆成多条 entry（如运动+吃饭 → 一条fitness + 一条diet）
@@ -99,7 +121,7 @@ parsed_data 字段（所有字段都必须填写，用合理估算值）：
 - energy: energy_level(1-10), reason
 
 只返回JSON，以{开头，不要任何其他文字。`
-    : `You are SimpliDay, a health assistant. Help users record fitness, diet, mood, energy data.${timeInfo}${historyContext}
+    : `You are SimpliDay, a health assistant. Help users record fitness, diet, mood, energy data.${timeInfo}${profileContext}${historyContext}
 
 Rules:
 1. Split different categories into separate entries (workout+food → 1 fitness + 1 diet)

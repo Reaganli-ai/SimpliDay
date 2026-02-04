@@ -6,12 +6,13 @@ import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { chat, EntryRecord } from '@/lib/ai';
 import { createEntry } from '@/lib/supabase';
-import { Entry } from '@/types';
+import { Entry, UserProfile } from '@/types';
 
 interface ChatBoxProps {
   entries?: Entry[];
   onEntryCreated?: () => void;
   compact?: boolean;
+  profile?: UserProfile | null;
 }
 
 interface Message {
@@ -21,7 +22,7 @@ interface Message {
   confirmed?: boolean;
 }
 
-export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatBoxProps) {
+export function ChatBox({ entries = [], onEntryCreated, compact = false, profile }: ChatBoxProps) {
   const { language } = useI18n();
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -69,7 +70,7 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
         content: m.content,
       }));
 
-      const response = await chat(userMessage, language, entries, conversationHistory);
+      const response = await chat(userMessage, language, entries, conversationHistory, profile);
 
       setMessages(prev => [...prev, {
         role: 'assistant',

@@ -1,0 +1,12 @@
+-- SimpliDay v2.0 Migration: Add profile fields
+-- Run this in Supabase SQL Editor
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS age INTEGER,
+  ADD COLUMN IF NOT EXISTS height_cm NUMERIC,
+  ADD COLUMN IF NOT EXISTS weight_kg NUMERIC,
+  ADD COLUMN IF NOT EXISTS goal VARCHAR(20) DEFAULT 'maintain',
+  ADD COLUMN IF NOT EXISTS activity_level VARCHAR(20) DEFAULT 'light',
+  ADD COLUMN IF NOT EXISTS lifestyle TEXT,
+  ADD COLUMN IF NOT EXISTS tdee INTEGER;

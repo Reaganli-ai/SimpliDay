@@ -9,6 +9,23 @@ export interface Entry {
   created_at: string;
 }
 
+export type Gender = 'male' | 'female';
+export type Goal = 'lose' | 'maintain' | 'gain';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active';
+
+export interface UserProfile {
+  id: string;
+  language: 'en' | 'zh';
+  gender?: Gender;
+  age?: number;
+  height_cm?: number;
+  weight_kg?: number;
+  goal?: Goal;
+  activity_level?: ActivityLevel;
+  lifestyle?: string;
+  tdee?: number;
+}
+
 export interface User {
   id: string;
   email: string;

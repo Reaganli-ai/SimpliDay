@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { UserProfile, Gender, Goal, ActivityLevel } from '@/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -104,4 +105,58 @@ export async function updateEntry(
 
   if (error) throw error;
   return data;
+}
+
+// TDEE Calculation (Mifflin-St Jeor)
+export function calculateTDEE(
+  gender: Gender,
+  age: number,
+  heightCm: number,
+  weightKg: number,
+  activityLevel: ActivityLevel
+): number {
+  // BMR
+  let bmr: number;
+  if (gender === 'male') {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
+  } else {
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
+  }
+
+  // Activity multiplier
+  const multipliers: Record<ActivityLevel, number> = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+  };
+
+  return Math.round(bmr * multipliers[activityLevel]);
+}
+
+export async function updateProfile(
+  userId: string,
+  profile: Partial<Omit<UserProfile, 'id'>>
+) {
+  // Calculate TDEE if we have all required fields
+  let tdee = profile.tdee;
+  if (profile.gender && profile.age && profile.height_cm && profile.weight_kg && profile.activity_level) {
+    tdee = calculateTDEE(
+      profile.gender,
+      profile.age,
+      profile.height_cm,
+      profile.weight_kg,
+      profile.activity_level
+    );
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      id: userId,
+      ...profile,
+      tdee,
+    });
+
+  if (error) throw error;
 }
