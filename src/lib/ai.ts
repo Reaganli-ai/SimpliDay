@@ -204,7 +204,8 @@ Return only JSON.`;
   } catch {
     return {
       summary: language === 'zh' ? '继续保持记录习惯！' : 'Keep up the tracking habit!',
-      suggestions: [],
+      fitness_suggestions: [],
+      diet_suggestions: [],
       encouragement: language === 'zh' ? '你做得很好！' : 'You are doing great!'
     };
   }
