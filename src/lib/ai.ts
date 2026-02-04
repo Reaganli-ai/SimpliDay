@@ -275,18 +275,19 @@ export async function reparseEntry(
   type: string,
   content: string
 ): Promise<Record<string, unknown>> {
-  const prompt = `Extract structured data from this ${type} entry. Return ONLY a JSON object with the parsed data.
+  const prompt = `Extract structured data from this ${type} entry. Return ONLY a JSON object.
 
 Fields by type:
-- fitness: {"exercise":"...", "duration":number, "calories_burned":number, "intensity":"low|medium|high"}
-- diet: {"food":"...", "calories":number, "protein":number, "carbs":number, "fat":number}
-- mood: {"mood_score":number(1-10), "mood_keywords":["..."]}
-- energy: {"energy_level":number(1-10), "reason":"..."}
+- fitness: {"exercise":"运动名称", "duration":分钟数, "calories_burned":估算消耗千卡, "intensity":"低"或"中"或"高"(只能这三个值)}
+- diet: {"food":"食物名称", "calories":估算千卡, "protein":克, "carbs":克, "fat":克}
+- mood: {"mood_score":1到10, "mood_keywords":["关键词"]}
+- energy: {"energy_level":1到10, "reason":"原因"}
 
 Entry type: ${type}
 Entry text: ${content}
 
-Return ONLY the JSON object, starting with {`;
+重要：仔细读取文本中的数字。如果写了100分钟就是100，写了10分钟就是10。intensity 只能是"低"、"中"、"高"三选一。
+Return ONLY JSON starting with {`;
 
   const result = await callClaudeSingle(prompt, content);
 
