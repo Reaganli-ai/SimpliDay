@@ -197,14 +197,20 @@ export function EntryList({ entries, editable = false, onUpdate }: EntryListProp
   const handleSaveEdit = async (entry: Entry) => {
     setSaving(true);
     try {
-      // Re-parse the edited content to update structured data
+      // Re-parse the edited content to get new structured data
       const newParsedData = await reparseEntry(entry.type, editContent);
-      const mergedData = { ...entry.parsed_data, ...newParsedData };
-      await updateEntry(entry.id, editContent, mergedData);
+      // Use new data if AI returned anything, otherwise keep old
+      const hasNewData = Object.keys(newParsedData).length > 0;
+      const finalData = hasNewData ? newParsedData : entry.parsed_data;
+      await updateEntry(entry.id, editContent, finalData);
       setEditingId(null);
       onUpdate?.();
     } catch (error) {
       console.error('Failed to update:', error);
+      // Still save the text even if reparse fails
+      await updateEntry(entry.id, editContent, entry.parsed_data);
+      setEditingId(null);
+      onUpdate?.();
     } finally {
       setSaving(false);
     }

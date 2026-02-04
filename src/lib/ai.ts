@@ -275,35 +275,42 @@ export async function reparseEntry(
   type: string,
   content: string
 ): Promise<Record<string, unknown>> {
-  const prompt = `Extract structured data from this ${type} entry. Return ONLY a JSON object.
+  const fieldsByType: Record<string, string> = {
+    fitness: '{"exercise":"运动名称","duration":分钟数(数字),"calories_burned":估算消耗千卡(数字),"intensity":"低"或"中"或"高"}',
+    diet: '{"food":"食物名称","calories":估算千卡(数字),"protein":蛋白质克数(数字),"carbs":碳水克数(数字),"fat":脂肪克数(数字)}',
+    mood: '{"mood_score":1到10的数字,"mood_keywords":["情绪关键词"]}',
+    energy: '{"energy_level":1到10的数字,"reason":"原因"}',
+  };
 
-Fields by type:
-- fitness: {"exercise":"运动名称", "duration":分钟数, "calories_burned":估算消耗千卡, "intensity":"低"或"中"或"高"(只能这三个值)}
-- diet: {"food":"食物名称", "calories":估算千卡, "protein":克, "carbs":克, "fat":克}
-- mood: {"mood_score":1到10, "mood_keywords":["关键词"]}
-- energy: {"energy_level":1到10, "reason":"原因"}
+  const fields = fieldsByType[type] || fieldsByType.fitness;
 
-Entry type: ${type}
-Entry text: ${content}
+  const systemPrompt = `你是一个数据提取工具。从用户的文字中提取结构化数据。只返回JSON，不要任何其他文字。
+输出格式：${fields}
+重要：文字中出现的数字要精确提取，不要自己编造。只返回JSON，以{开头。`;
 
-重要：仔细读取文本中的数字。如果写了100分钟就是100，写了10分钟就是10。intensity 只能是"低"、"中"、"高"三选一。
-Return ONLY JSON starting with {`;
-
-  const result = await callClaudeSingle(prompt, content);
+  const result = await callClaudeSingle(systemPrompt, content);
 
   if (!result || !result.content) return {};
 
   let text = result.content;
-  try {
-    JSON.parse(text);
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) text = match[0];
+
+  // Try to extract JSON from response
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) {
+    text = codeBlock[1].trim();
   }
 
   try {
     return JSON.parse(text);
   } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return {};
+      }
+    }
     return {};
   }
 }
