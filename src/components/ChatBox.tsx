@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Mic, Send, Loader2, Maximize2, X, ArrowLeft } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { chat, ChatResponse } from '@/lib/ai';
+import { chat } from '@/lib/ai';
 import { createEntry } from '@/lib/supabase';
 import { Entry } from '@/types';
 
@@ -28,6 +28,8 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
   const [isProcessing, setIsProcessing] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   const handleSubmit = async () => {
     if (!input.trim() || !user) return;
@@ -38,17 +40,20 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
 
     setIsProcessing(true);
     try {
-      const response: ChatResponse = await chat(userMessage, language, entries);
+      const response = await chat(userMessage, language, entries);
 
-      if (response.should_record && response.type) {
-        await createEntry(user.id, response.type, userMessage, response.parsed_data);
+      // Create multiple entries if needed
+      if (response.entries && response.entries.length > 0) {
+        for (const entry of response.entries) {
+          await createEntry(user.id, entry.type, entry.content, entry.parsed_data);
+        }
         onEntryCreated?.();
       }
 
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.reply,
-        recorded: response.should_record
+        recorded: response.entries.length > 0
       }]);
     } catch (error) {
       console.error('Failed to process:', error);
@@ -63,28 +68,58 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
 
   const toggleRecording = () => {
     if (isRecording) {
-      setIsRecording(false);
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = language === 'zh' ? 'zh-CN' : 'en-US';
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = (event: { results: { transcript: string }[][] }) => {
-          const transcript = event.results[0][0].transcript;
-          setInput(prev => prev + transcript);
-        };
-
-        recognition.onend = () => setIsRecording(false);
-        recognition.onerror = () => setIsRecording(false);
-
-        recognition.start();
-        setIsRecording(true);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
       }
+      setIsRecording(false);
+      return;
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      alert(language === 'zh' ? '您的浏览器不支持语音识别' : 'Speech recognition is not supported in your browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === 'zh' ? 'zh-CN' : 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let finalTranscript = '';
+
+    recognition.onresult = (event: { results: { transcript: string; isFinal?: boolean }[][]; resultIndex: number }) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i][0];
+        if (event.results[i] && (event.results[i] as unknown as { isFinal: boolean }).isFinal) {
+          finalTranscript += result.transcript;
+        } else {
+          interim += result.transcript;
+        }
+      }
+      setInput(finalTranscript + interim);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onerror = (event: { error: string }) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      recognitionRef.current = null;
+      if (event.error === 'not-allowed') {
+        alert(language === 'zh' ? '请允许麦克风权限' : 'Please allow microphone access');
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
   };
 
   // 全屏模式
@@ -158,7 +193,7 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               placeholder={language === 'zh' ? '输入消息...' : 'Type a message...'}
-              className="flex-1 px-4 py-3 bg-zinc-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+              className="flex-1 px-4 py-3 bg-zinc-100 rounded-full text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200"
               disabled={isProcessing}
             />
             <button
@@ -224,7 +259,7 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder={language === 'zh' ? '跟我聊聊...' : 'Chat with me...'}
-          className="flex-1 px-3 py-2 bg-zinc-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+          className="flex-1 px-3 py-2 bg-zinc-50 rounded-lg text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200"
           disabled={isProcessing}
         />
         <button

@@ -8,7 +8,7 @@ import { AuthForm } from '@/components/AuthForm';
 import { BottomNav } from '@/components/BottomNav';
 import { EntryList } from '@/components/EntryList';
 import { Entry } from '@/types';
-import { Loader2, Dumbbell, Utensils, Heart, Zap } from 'lucide-react';
+import { Loader2, Dumbbell, Utensils, Heart, Zap, List, LayoutGrid } from 'lucide-react';
 
 export default function RecordsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -16,6 +16,7 @@ export default function RecordsPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'week' | 'month' | 'all'>('week');
+  const [historyView, setHistoryView] = useState<'categorized' | 'raw'>('categorized');
 
   const fetchEntries = async () => {
     if (!user) return;
@@ -217,10 +218,66 @@ export default function RecordsPage() {
 
             {/* 历史记录列表 */}
             <section>
-              <h2 className="text-sm font-medium text-zinc-400 mb-3 uppercase tracking-wide">
-                {language === 'zh' ? '历史记录' : 'History'}
-              </h2>
-              <EntryList entries={filteredEntries} editable onUpdate={fetchEntries} />
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wide">
+                  {language === 'zh' ? '历史记录' : 'History'}
+                </h2>
+                <div className="flex bg-zinc-100 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setHistoryView('categorized')}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      historyView === 'categorized'
+                        ? 'bg-white text-zinc-900 shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                    title={language === 'zh' ? '分类显示' : 'Categorized'}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setHistoryView('raw')}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      historyView === 'raw'
+                        ? 'bg-white text-zinc-900 shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                    title={language === 'zh' ? '时间顺序' : 'Timeline'}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {historyView === 'raw' ? (
+                <EntryList entries={filteredEntries} editable onUpdate={fetchEntries} />
+              ) : (
+                <div className="space-y-4">
+                  {[
+                    { key: 'fitness' as const, icon: Dumbbell, label: language === 'zh' ? '健身' : 'Fitness' },
+                    { key: 'diet' as const, icon: Utensils, label: language === 'zh' ? '饮食' : 'Diet' },
+                    { key: 'mood' as const, icon: Heart, label: language === 'zh' ? '心情' : 'Mood' },
+                    { key: 'energy' as const, icon: Zap, label: language === 'zh' ? '能量' : 'Energy' },
+                  ].map(({ key, icon: Icon, label }) => {
+                    const catEntries = filteredEntries.filter(e => e.type === key);
+                    if (catEntries.length === 0) return null;
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon className="w-4 h-4 text-zinc-400" />
+                          <span className="text-xs font-medium text-zinc-500">{label}</span>
+                          <span className="text-xs text-zinc-300">{catEntries.length}</span>
+                        </div>
+                        <EntryList entries={catEntries} editable onUpdate={fetchEntries} />
+                      </div>
+                    );
+                  })}
+                  {filteredEntries.length === 0 && (
+                    <div className="text-center py-12 text-zinc-400">
+                      <p>{language === 'zh' ? '还没有记录' : 'No entries yet'}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </>
         )}

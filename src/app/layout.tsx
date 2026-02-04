@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LifeTracker - Track Your Wellness Journey",
+  title: "SimpliDay - Track Your Wellness Journey",
   description: "Track your fitness, diet, mood, and energy levels with AI-powered insights",
 };
 
@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased bg-zinc-50 dark:bg-zinc-950`}>
+    <html lang="en" suppressHydrationWarning style={{ colorScheme: 'light' }}>
+      <body className={`${inter.variable} font-sans antialiased bg-zinc-50`}>
         <Providers>
           {children}
         </Providers>

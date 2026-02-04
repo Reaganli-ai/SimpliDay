@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Mic, MicOff, Send, Loader2, Bot } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { chat, ChatResponse } from '@/lib/ai';
+import { chat } from '@/lib/ai';
 import { createEntry } from '@/lib/supabase';
 import { Entry } from '@/types';
 
@@ -38,16 +38,13 @@ export function InputCard({ onEntryCreated, entries = [] }: InputCardProps) {
 
     setIsProcessing(true);
     try {
-      const response: ChatResponse = await chat(userMessage, language, entries);
+      const response = await chat(userMessage, language, entries);
 
-      // 如果需要记录，保存到数据库
-      if (response.should_record && response.type) {
-        await createEntry(
-          user.id,
-          response.type,
-          userMessage,
-          response.parsed_data
-        );
+      // Create multiple entries if needed
+      if (response.entries && response.entries.length > 0) {
+        for (const entry of response.entries) {
+          await createEntry(user.id, entry.type, entry.content, entry.parsed_data);
+        }
         onEntryCreated?.();
       }
 
@@ -55,7 +52,7 @@ export function InputCard({ onEntryCreated, entries = [] }: InputCardProps) {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.reply,
-        recorded: response.should_record
+        recorded: response.entries.length > 0
       }]);
 
     } catch (error) {

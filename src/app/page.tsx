@@ -149,40 +149,49 @@ export default function Home() {
           </section>
         )}
 
-        {/* 最近记录 */}
-        {todayEntries.length > 0 && (
-          <section>
-            <h2 className="text-sm font-medium text-zinc-500 mb-3">
-              {language === 'zh' ? '最近记录' : 'Recent'}
-            </h2>
-            <div className="bg-white rounded-xl border border-zinc-100 divide-y divide-zinc-50">
-              {todayEntries.slice(0, 5).map((entry) => {
-                const time = new Date(entry.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-                const icons = {
-                  fitness: Dumbbell,
-                  diet: Utensils,
-                  mood: Heart,
-                  energy: Zap,
-                  other: Zap
-                };
-                const Icon = icons[entry.type];
+        {/* 今日记录 - 分类显示 */}
+        {todayEntries.length > 0 && (() => {
+          const categories = [
+            { key: 'fitness' as const, icon: Dumbbell, label: language === 'zh' ? '健身' : 'Fitness', entries: todayFitness },
+            { key: 'diet' as const, icon: Utensils, label: language === 'zh' ? '饮食' : 'Diet', entries: todayDiet },
+            { key: 'mood' as const, icon: Heart, label: language === 'zh' ? '心情' : 'Mood', entries: todayMood },
+            { key: 'energy' as const, icon: Zap, label: language === 'zh' ? '能量' : 'Energy', entries: todayEnergy },
+          ].filter(c => c.entries.length > 0);
 
-                return (
-                  <div key={entry.id} className="flex items-center gap-3 p-3">
-                    <Icon className="w-4 h-4 text-zinc-300" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-900 truncate">{entry.content}</p>
+          return (
+            <section>
+              <h2 className="text-sm font-medium text-zinc-500 mb-3">
+                {language === 'zh' ? '今日记录' : "Today's Records"}
+              </h2>
+              <div className="space-y-3">
+                {categories.map(({ key, icon: Icon, label, entries: catEntries }) => (
+                  <div key={key} className="bg-white rounded-xl border border-zinc-100">
+                    <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+                      <Icon className="w-4 h-4 text-zinc-400" />
+                      <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{label}</span>
                     </div>
-                    <span className="text-xs text-zinc-400">{time}</span>
+                    <div className="divide-y divide-zinc-50">
+                      {catEntries.slice(0, 3).map((entry) => {
+                        const time = new Date(entry.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                        return (
+                          <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-zinc-900 truncate">{entry.content}</p>
+                            </div>
+                            <span className="text-xs text-zinc-400">{time}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+                ))}
+              </div>
+            </section>
+          );
+        })()}
       </main>
 
       <BottomNav />

@@ -11,12 +11,7 @@
   --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-  }
-}
+/* Force light mode - app is light-only */
 
 body {
   background: var(--background);
