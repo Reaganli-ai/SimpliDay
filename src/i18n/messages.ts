@@ -1,0 +1,113 @@
+export const messages = {
+  en: {
+    common: {
+      appName: 'LifeTracker',
+      loading: 'Loading...',
+      save: 'Save',
+      cancel: 'Cancel',
+      delete: 'Delete',
+      edit: 'Edit',
+    },
+    nav: {
+      home: 'Home',
+      history: 'History',
+      insights: 'Insights',
+      settings: 'Settings',
+    },
+    auth: {
+      signIn: 'Sign In',
+      signUp: 'Sign Up',
+      signOut: 'Sign Out',
+      email: 'Email',
+      password: 'Password',
+      forgotPassword: 'Forgot password?',
+    },
+    input: {
+      placeholder: 'Tell me about your workout, meal, mood, or energy level...',
+      recording: 'Recording...',
+      stopRecording: 'Stop',
+      submit: 'Submit',
+      processing: 'Processing...',
+    },
+    entry: {
+      fitness: 'Fitness',
+      diet: 'Diet',
+      mood: 'Mood',
+      energy: 'Energy',
+      other: 'Other',
+      today: 'Today',
+      thisWeek: 'This Week',
+      thisMonth: 'This Month',
+    },
+    insights: {
+      title: 'Your Insights',
+      weeklyReport: 'Weekly Report',
+      suggestions: 'Suggestions for You',
+      noData: 'Not enough data yet. Keep tracking!',
+      generateReport: 'Generate Report',
+    },
+    settings: {
+      title: 'Settings',
+      language: 'Language',
+      theme: 'Theme',
+      notifications: 'Notifications',
+    },
+  },
+  zh: {
+    common: {
+      appName: 'LifeTracker',
+      loading: '加载中...',
+      save: '保存',
+      cancel: '取消',
+      delete: '删除',
+      edit: '编辑',
+    },
+    nav: {
+      home: '首页',
+      history: '历史记录',
+      insights: '分析洞察',
+      settings: '设置',
+    },
+    auth: {
+      signIn: '登录',
+      signUp: '注册',
+      signOut: '退出登录',
+      email: '邮箱',
+      password: '密码',
+      forgotPassword: '忘记密码？',
+    },
+    input: {
+      placeholder: '告诉我你的健身、饮食、心情或能量状态...',
+      recording: '录音中...',
+      stopRecording: '停止',
+      submit: '提交',
+      processing: '处理中...',
+    },
+    entry: {
+      fitness: '健身',
+      diet: '饮食',
+      mood: '心情',
+      energy: '能量',
+      other: '其他',
+      today: '今天',
+      thisWeek: '本周',
+      thisMonth: '本月',
+    },
+    insights: {
+      title: '你的洞察',
+      weeklyReport: '周报',
+      suggestions: '给你的建议',
+      noData: '数据还不够，继续记录吧！',
+      generateReport: '生成报告',
+    },
+    settings: {
+      title: '设置',
+      language: '语言',
+      theme: '主题',
+      notifications: '通知',
+    },
+  },
+};
+
+export type Language = keyof typeof messages;
+export type Messages = typeof messages.en;
