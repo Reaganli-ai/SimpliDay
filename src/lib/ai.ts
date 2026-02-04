@@ -92,10 +92,10 @@ export async function chat(
 必须返回 JSON：
 {"entries":[{"type":"fitness","content":"椭圆机","parsed_data":{"exercise":"椭圆机","duration":30,"calories_burned":250,"intensity":"中"}}],"reply":"你的回复"}
 
-parsed_data 字段：
-- fitness: exercise, duration, calories_burned, intensity
-- diet: food, calories, protein, carbs, fat
-- mood: mood_score(1-10), mood_keywords
+parsed_data 字段（所有字段都必须填写，用合理估算值）：
+- fitness: exercise(运动名), duration(分钟数), calories_burned(必须估算消耗千卡), intensity("低"或"中"或"高")
+- diet: food(食物名), calories(必须估算摄入千卡), protein(克), carbs(克), fat(克)
+- mood: mood_score(1-10), mood_keywords(数组)
 - energy: energy_level(1-10), reason
 
 只返回JSON，以{开头，不要任何其他文字。`
@@ -114,10 +114,10 @@ Example: "Got it!\\n• Fitness: Elliptical, ~250kcal burned\\n• Diet: Egg + c
 Must return JSON:
 {"entries":[{"type":"fitness","content":"Elliptical","parsed_data":{"exercise":"elliptical","duration":30,"calories_burned":250,"intensity":"medium"}}],"reply":"your reply"}
 
-parsed_data fields:
-- fitness: exercise, duration, calories_burned, intensity
-- diet: food, calories, protein, carbs, fat
-- mood: mood_score(1-10), mood_keywords
+parsed_data fields (ALL fields required, use reasonable estimates):
+- fitness: exercise(name), duration(minutes), calories_burned(MUST estimate kcal), intensity("low"/"medium"/"high")
+- diet: food(name), calories(MUST estimate kcal), protein(g), carbs(g), fat(g)
+- mood: mood_score(1-10), mood_keywords(array)
 - energy: energy_level(1-10), reason
 
 Return ONLY JSON starting with {, no other text.`;

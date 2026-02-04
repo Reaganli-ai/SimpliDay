@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Dumbbell, Utensils, Heart, Zap, Flame, Clock, TrendingUp, FileText, Trash2, Edit3, X, Check, Loader2 } from 'lucide-react';
+import { Dumbbell, Utensils, Heart, Zap, FileText, Trash2, Edit3, X, Check, Loader2 } from 'lucide-react';
 import { Entry, EntryType } from '@/types';
 import { useI18n } from '@/lib/i18n';
 import { deleteEntry, updateEntry } from '@/lib/supabase';
@@ -31,70 +31,56 @@ const typeColors: Record<EntryType, string> = {
 
 // 健身数据展示
 function FitnessData({ data, language }: { data: Record<string, unknown>; language: string }) {
+  const exercise = data.exercise ? String(data.exercise) : null;
+  const duration = Number(data.duration) || 0;
+  const calories = Number(data.calories_burned) || 0;
+  const intensity = data.intensity ? String(data.intensity) : null;
+
   return (
-    <div className="flex flex-wrap gap-3 mt-3">
-      {data.exercise ? (
-        <div className="flex items-center gap-1.5 text-sm">
-          <Dumbbell className="w-4 h-4 text-blue-500" />
-          <span className="text-zinc-700 dark:text-zinc-300">{String(data.exercise)}</span>
-        </div>
-      ) : null}
-      {data.duration ? (
-        <div className="flex items-center gap-1.5 text-sm">
-          <Clock className="w-4 h-4 text-zinc-400" />
-          <span className="text-zinc-600 dark:text-zinc-400">{String(data.duration)} {language === 'zh' ? '分钟' : 'min'}</span>
-        </div>
-      ) : null}
-      {data.calories_burned ? (
-        <div className="flex items-center gap-1.5 text-sm">
-          <Flame className="w-4 h-4 text-orange-500" />
-          <span className="text-orange-600 dark:text-orange-400">-{String(data.calories_burned)} kcal</span>
-        </div>
-      ) : null}
-      {data.intensity ? (
-        <div className="flex items-center gap-1.5 text-sm">
-          <TrendingUp className="w-4 h-4 text-emerald-500" />
-          <span className="text-zinc-600 dark:text-zinc-400">
-            {language === 'zh' ? `${String(data.intensity)}强度` : `${String(data.intensity)} intensity`}
-          </span>
-        </div>
-      ) : null}
+    <div className="mt-2 space-y-1">
+      {(exercise || duration > 0) && (
+        <p className="text-sm text-zinc-600">
+          {exercise}{exercise && duration > 0 ? ' · ' : ''}{duration > 0 ? `${duration} ${language === 'zh' ? '分钟' : 'min'}` : ''}
+          {intensity && <span className="text-zinc-400 ml-1.5 text-xs">({intensity})</span>}
+        </p>
+      )}
+      {calories > 0 && (
+        <p className="text-sm font-medium text-orange-600">
+          {language === 'zh' ? `消耗 ${calories} kcal` : `${calories} kcal burned`}
+        </p>
+      )}
     </div>
   );
 }
 
 // 饮食数据展示
 function DietData({ data, language }: { data: Record<string, unknown>; language: string }) {
+  const food = data.food ? String(data.food) : null;
+  const calories = Number(data.calories) || 0;
+  const protein = Number(data.protein) || 0;
+  const carbs = Number(data.carbs) || 0;
+  const fat = Number(data.fat) || 0;
+  const hasMacros = protein > 0 || carbs > 0 || fat > 0;
+
   return (
-    <div className="mt-3 space-y-2">
-      {data.food ? (
-        <div className="flex items-center gap-1.5 text-sm">
-          <Utensils className="w-4 h-4 text-orange-500" />
-          <span className="text-zinc-700 dark:text-zinc-300">{String(data.food)}</span>
-        </div>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {data.calories ? (
-          <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
-            🔥 {String(data.calories)} kcal
-          </span>
-        ) : null}
-        {data.protein ? (
-          <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '蛋白质' : 'P'} {String(data.protein)}g
-          </span>
-        ) : null}
-        {data.carbs ? (
-          <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '碳水' : 'C'} {String(data.carbs)}g
-          </span>
-        ) : null}
-        {data.fat ? (
-          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '脂肪' : 'F'} {String(data.fat)}g
-          </span>
-        ) : null}
-      </div>
+    <div className="mt-2 space-y-1">
+      {food && (
+        <p className="text-sm text-zinc-600">{food}</p>
+      )}
+      {calories > 0 && (
+        <p className="text-sm font-medium text-orange-600">
+          {language === 'zh' ? `摄入 ${calories} kcal` : `${calories} kcal intake`}
+        </p>
+      )}
+      {hasMacros && (
+        <p className="text-xs text-zinc-400">
+          {[
+            protein > 0 ? `${language === 'zh' ? '蛋白质' : 'P'} ${protein}g` : null,
+            carbs > 0 ? `${language === 'zh' ? '碳水' : 'C'} ${carbs}g` : null,
+            fat > 0 ? `${language === 'zh' ? '脂肪' : 'F'} ${fat}g` : null,
+          ].filter(Boolean).join(' · ')}
+        </p>
+      )}
     </div>
   );
 }
