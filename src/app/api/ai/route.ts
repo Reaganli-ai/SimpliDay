@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { systemPrompt, userMessage } = await request.json();
+    const { systemPrompt, userMessage, messages } = await request.json();
+
+    // Support both single message and multi-turn conversation
+    const apiMessages = messages
+      ? messages
+      : [{ role: 'user', content: userMessage }];
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -15,7 +20,7 @@ export async function POST(request: NextRequest) {
         model: 'claude-3-haiku-20240307',
         max_tokens: 1024,
         system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }],
+        messages: apiMessages,
       }),
     });
 

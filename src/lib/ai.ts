@@ -1,6 +1,26 @@
 import { AISuggestion, Entry } from '@/types';
 
-async function callClaude(systemPrompt: string, userMessage: string) {
+interface ApiMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+async function callClaude(systemPrompt: string, messages: ApiMessage[]) {
+  const response = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemPrompt, messages }),
+  });
+
+  if (!response.ok) {
+    throw new Error('AI request failed');
+  }
+
+  return response.json();
+}
+
+// Legacy single-message call (for generateSuggestions)
+async function callClaudeSingle(systemPrompt: string, userMessage: string) {
   const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -25,10 +45,16 @@ export interface ChatResponse {
   reply: string;
 }
 
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export async function chat(
   input: string,
   language: 'en' | 'zh',
-  recentEntries?: Entry[]
+  recentEntries?: Entry[],
+  conversationHistory?: ConversationMessage[]
 ): Promise<ChatResponse> {
   // 构建历史记录摘要
   let historyContext = '';
@@ -38,24 +64,44 @@ export async function chat(
       return `- [${e.type}] ${e.content} (${date})`;
     }).join('\n');
     historyContext = language === 'zh'
-      ? `\n\n用户最近的记录：\n${summary}\n\n请基于这些记录来给用户更个性化的建议。`
-      : `\n\nUser's recent records:\n${summary}\n\nPlease give personalized advice based on these records.`;
+      ? `\n\n用户最近的已确认记录：\n${summary}\n\n请基于这些记录来给用户更个性化的建议。`
+      : `\n\nUser's recent confirmed records:\n${summary}\n\nPlease give personalized advice based on these records.`;
   }
+
+  // 当前时间信息
+  const now = new Date();
+  const currentHour = now.getHours();
+  const isLateNight = currentHour >= 0 && currentHour < 3;
+  const timeInfo = language === 'zh'
+    ? `\n当前时间：${now.toLocaleString('zh-CN')}${isLateNight ? '\n注意：现在是凌晨时段（0-3点），用户提到的活动可能是昨天发生的，请询问确认。' : ''}`
+    : `\nCurrent time: ${now.toLocaleString('en-US')}${isLateNight ? '\nNote: It is early morning (0-3am). Activities mentioned may have happened yesterday. Please ask to confirm.' : ''}`;
 
   const systemPrompt = language === 'zh'
     ? `你是一个温暖、专业的健康生活助手，名叫 SimpliDay。你可以和用户自然地聊天，同时帮助他们记录健康数据。
+${timeInfo}
 
 你的职责：
 1. 判断用户的输入是否与健康记录相关（健身、饮食、心情、能量状态）
-2. 如果相关，提取数据并给出友好的回复和实时建议
+2. 如果相关，提取数据并展示你的分析过程，等用户确认
 3. 如果不相关，就正常聊天，不记录
 4. 根据用户的历史记录，给出个性化的建议
+5. 如果用户说"对/确认/OK/没问题"之类的确认语，返回空 entries（因为记录已由系统在用户点确认按钮时保存）
 
 重要规则 - 多条记录拆分：
 - 如果用户一句话提到了多种不同类别的事情，你必须拆分成多条记录
 - 例如："今天跑了5公里，吃了一碗牛肉面" → 拆成一条 fitness + 一条 diet
-- 例如："做了30分钟椭圆机，吃了鸡蛋喝了冰美式" → 拆成一条 fitness + 一条 diet（饮食可以合并）
 - 同一类别的可以合在一起（比如多种食物合成一条 diet）
+
+重要规则 - 展示思考过程：
+- 不要只说"帮你记录了"，而是展示你的分析
+- 告诉用户你是怎么估算热量/数据的
+- 示例回复格式：
+  "收到！我帮你整理一下：\n\n🏋️ 健身：椭圆机30分钟\n→ 中等强度，估算消耗约250kcal\n\n🍽️ 饮食：鸡蛋 + 冰美式\n→ 鸡蛋约80kcal/7g蛋白质\n→ 冰美式约5kcal\n\n这样记录OK吗？"
+- 用户看到后可以点确认，或告诉你哪里需要修改
+
+重要规则 - 用户纠正：
+- 如果用户说"不对"或纠正某个数据，你要根据新信息重新生成 entries
+- 例如用户说"不是30分钟，是20分钟"，你要返回修正后的 entries
 
 你的性格：
 - 温暖、caring，像一个关心你的朋友
@@ -65,9 +111,9 @@ export async function chat(
 回复风格要求（非常重要）：
 - 简短有力，不要长篇大论
 - 用 bullet points 或换行分隔要点
-- 每个要点一句话，不超过15字
-- 先给情绪价值（鼓励/认可），再给建议
-- 建议最多2-3条，具体可执行
+- 先展示你的分析，再问用户确认
+- 建议最多1-2条，具体可执行
+- 偶尔可以给用户一些记录的小提示，比如"下次可以告诉我运动时长，我能更准确地估算消耗哦"
 
 返回 JSON 格式：
 {
@@ -83,38 +129,41 @@ export async function chat(
       }
     }
   ],
-  "reply": "简洁的回复，用\\n换行分隔要点"
+  "reply": "你的分析和回复"
 }
 
 说明：
 - 如果用户输入和健康无关，entries 为空数组 []
+- 如果用户在确认（"对/OK/没问题"），entries 也为空数组 []（确认由前端按钮处理）
 - 如果涉及多个类别，entries 里放多条记录
-- content 字段是对这条记录的简洁描述（不是用户原始输入）
-
-示例：
-输入："做了30分钟椭圆机，吃了一个鸡蛋喝了一杯冰美式"
-{
-  "entries": [
-    {"type": "fitness", "content": "椭圆机 30分钟", "parsed_data": {"exercise": "椭圆机", "duration": 30, "calories_burned": 250, "intensity": "中"}},
-    {"type": "diet", "content": "一个鸡蛋 + 一杯冰美式", "parsed_data": {"food": "鸡蛋, 冰美式", "calories": 120, "protein": 7, "carbs": 1, "fat": 5}}
-  ],
-  "reply": "运动+健康饮食，完美组合\\n\\n• 椭圆机30分钟消耗不错\\n• 鸡蛋补蛋白很聪明"
-}
+- content 字段是简洁描述
 
 只返回 JSON，以 { 开头`
     : `You are a warm, professional health assistant named SimpliDay. You chat naturally with users while helping track their health data.
+${timeInfo}
 
 Your role:
 1. Determine if input relates to health (fitness, diet, mood, energy)
-2. If related, extract data and give a friendly reply with real-time advice
+2. If related, extract data and show your analysis, wait for user confirmation
 3. If unrelated, just chat normally, don't record
 4. Give personalized advice based on user's history
+5. If user says "yes/confirm/OK/looks good" etc., return empty entries (recording is handled by confirm button)
 
 Important rule - split multiple entries:
-- If the user mentions multiple different categories in one message, you MUST split into separate entries
-- Example: "Ran 5km and had a beef noodle bowl" → one fitness entry + one diet entry
-- Example: "Did 30min elliptical, ate an egg and iced americano" → one fitness + one diet
-- Same category items can be combined (e.g. multiple foods in one diet entry)
+- If the user mentions multiple different categories in one message, split into separate entries
+- Example: "Ran 5km and had a beef noodle bowl" → one fitness + one diet entry
+- Same category items can be combined
+
+Important rule - show your thinking:
+- Don't just say "recorded!", show your analysis
+- Explain how you estimated calories/data
+- Example reply:
+  "Got it! Here's what I see:\\n\\n🏋️ Fitness: Elliptical 30min\\n→ Medium intensity, ~250kcal burned\\n\\n🍽️ Diet: Egg + iced americano\\n→ Egg ~80kcal/7g protein\\n→ Iced americano ~5kcal\\n\\nLook good?"
+- User can then confirm or tell you what to fix
+
+Important rule - user corrections:
+- If user says "no" or corrects something, regenerate entries with the new info
+- e.g. "it was 20 minutes not 30" → return corrected entries
 
 Your personality:
 - Warm, caring, like a supportive friend
@@ -123,10 +172,10 @@ Your personality:
 
 Reply style (very important):
 - Short and punchy, no long paragraphs
-- Use bullet points or line breaks to separate points
-- Each point max 10 words
-- First give emotional support, then advice
-- Max 2-3 actionable suggestions
+- Use bullet points or line breaks
+- Show your analysis first, then ask for confirmation
+- Max 1-2 actionable suggestions
+- Occasionally give tips like "Next time, tell me the duration and I can estimate calories more accurately"
 
 Return JSON:
 {
@@ -142,27 +191,32 @@ Return JSON:
       }
     }
   ],
-  "reply": "concise reply, use \\n for line breaks"
+  "reply": "your analysis and reply"
 }
 
 Notes:
 - If input is not health-related, entries should be empty array []
-- If multiple categories are mentioned, put multiple records in entries
-- content field is a concise description of this entry (not the raw user input)
-
-Example:
-Input: "Did 30min on the elliptical, had an egg and iced americano"
-{
-  "entries": [
-    {"type": "fitness", "content": "Elliptical 30min", "parsed_data": {"exercise": "elliptical", "duration": 30, "calories_burned": 250, "intensity": "medium"}},
-    {"type": "diet", "content": "Egg + iced americano", "parsed_data": {"food": "egg, iced americano", "calories": 120, "protein": 7, "carbs": 1, "fat": 5}}
-  ],
-  "reply": "Workout + clean eating, great combo\\n\\n• 30min elliptical burns well\\n• Egg for protein is smart"
-}
+- If user is confirming ("yes/OK/looks good"), entries should be empty array []
+- If multiple categories, put multiple records in entries
+- content field is a concise description
 
 Only return JSON starting with {`;
 
-  const result = await callClaude(systemPrompt, input);
+  // Build messages array with conversation history
+  const apiMessages: ApiMessage[] = [];
+
+  if (conversationHistory && conversationHistory.length > 0) {
+    // Include last 10 messages for context
+    const recentMessages = conversationHistory.slice(-10);
+    for (const msg of recentMessages) {
+      apiMessages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  // Add current user message
+  apiMessages.push({ role: 'user', content: input });
+
+  const result = await callClaude(systemPrompt, apiMessages);
 
   let content = result.content;
 
@@ -256,7 +310,7 @@ Return only JSON.`;
     `[${e.type}] ${e.content} (${new Date(e.created_at).toLocaleDateString()})`
   ).join('\n');
 
-  const result = await callClaude(systemPrompt, `用户近期记录:\n${entrySummary}`);
+  const result = await callClaudeSingle(systemPrompt, `用户近期记录:\n${entrySummary}`);
 
   let content = result.content;
   const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);

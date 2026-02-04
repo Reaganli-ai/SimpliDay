@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Mic, Send, Loader2, Maximize2, X, ArrowLeft } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Mic, Send, Loader2, Maximize2, ArrowLeft, Check } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { chat } from '@/lib/ai';
+import { chat, EntryRecord } from '@/lib/ai';
 import { createEntry } from '@/lib/supabase';
 import { Entry } from '@/types';
 
@@ -17,7 +17,8 @@ interface ChatBoxProps {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  recorded?: boolean;
+  pendingEntries?: EntryRecord[];
+  confirmed?: boolean;
 }
 
 export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatBoxProps) {
@@ -30,6 +31,28 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
   const [isExpanded, setIsExpanded] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isProcessing]);
+
+  const handleConfirm = async (msgIndex: number) => {
+    const msg = messages[msgIndex];
+    if (!msg.pendingEntries || !user) return;
+
+    try {
+      for (const entry of msg.pendingEntries) {
+        await createEntry(user.id, entry.type, entry.content, entry.parsed_data);
+      }
+      setMessages(prev => prev.map((m, i) =>
+        i === msgIndex ? { ...m, confirmed: true } : m
+      ));
+      onEntryCreated?.();
+    } catch (error) {
+      console.error('Failed to save entries:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!input.trim() || !user) return;
@@ -40,20 +63,18 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
 
     setIsProcessing(true);
     try {
-      const response = await chat(userMessage, language, entries);
+      // Build conversation history for AI context
+      const conversationHistory = messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
 
-      // Create multiple entries if needed
-      if (response.entries && response.entries.length > 0) {
-        for (const entry of response.entries) {
-          await createEntry(user.id, entry.type, entry.content, entry.parsed_data);
-        }
-        onEntryCreated?.();
-      }
+      const response = await chat(userMessage, language, entries, conversationHistory);
 
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.reply,
-        recorded: response.entries.length > 0
+        pendingEntries: response.entries.length > 0 ? response.entries : undefined,
       }]);
     } catch (error) {
       console.error('Failed to process:', error);
@@ -122,6 +143,28 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
     setIsRecording(true);
   };
 
+  // Confirm button component
+  const ConfirmButton = ({ msgIndex, msg }: { msgIndex: number; msg: Message }) => {
+    if (!msg.pendingEntries) return null;
+    if (msg.confirmed) {
+      return (
+        <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-600">
+          <Check className="w-3.5 h-3.5" />
+          <span>{language === 'zh' ? '已记录' : 'Recorded'}</span>
+        </div>
+      );
+    }
+    return (
+      <button
+        onClick={() => handleConfirm(msgIndex)}
+        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs rounded-lg hover:bg-zinc-800 transition-colors"
+      >
+        <Check className="w-3.5 h-3.5" />
+        {language === 'zh' ? '确认记录' : 'Confirm'}
+      </button>
+    );
+  };
+
   // 全屏模式
   if (isExpanded) {
     return (
@@ -149,18 +192,18 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[85%] px-4 py-3 rounded-2xl ${
-                  msg.role === 'user'
-                    ? 'bg-zinc-900 text-white'
-                    : 'bg-white border border-zinc-100 text-zinc-900'
-                }`}
-              >
-                <p className="text-[15px] leading-relaxed whitespace-pre-line">{msg.content}</p>
-                {msg.recorded && (
-                  <p className="text-xs mt-2 opacity-60">
-                    {language === 'zh' ? '已记录' : 'Recorded'}
-                  </p>
+              <div className="max-w-[85%]">
+                <div
+                  className={`px-4 py-3 rounded-2xl ${
+                    msg.role === 'user'
+                      ? 'bg-zinc-900 text-white'
+                      : 'bg-white border border-zinc-100 text-zinc-900'
+                  }`}
+                >
+                  <p className="text-[15px] leading-relaxed whitespace-pre-line">{msg.content}</p>
+                </div>
+                {msg.role === 'assistant' && (
+                  <ConfirmButton msgIndex={idx} msg={msg} />
                 )}
               </div>
             </div>
@@ -172,6 +215,7 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
@@ -214,23 +258,31 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
     <div className="bg-white rounded-xl border border-zinc-100 overflow-hidden">
       {/* 聊天记录区域 */}
       {messages.length > 0 && (
-        <div className="max-h-48 overflow-y-auto p-3 space-y-2 border-b border-zinc-50">
-          {messages.slice(-4).map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+        <div className="max-h-64 overflow-y-auto p-3 space-y-2 border-b border-zinc-50">
+          {messages.slice(-6).map((msg, idx) => {
+            const realIdx = messages.length - Math.min(messages.length, 6) + idx;
+            return (
               <div
-                className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
-                  msg.role === 'user'
-                    ? 'bg-zinc-900 text-white'
-                    : 'bg-zinc-100 text-zinc-900'
-                }`}
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <p className="whitespace-pre-line">{msg.content}</p>
+                <div className="max-w-[85%]">
+                  <div
+                    className={`px-3 py-2 rounded-xl text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-900'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line">{msg.content}</p>
+                  </div>
+                  {msg.role === 'assistant' && (
+                    <ConfirmButton msgIndex={realIdx} msg={msg} />
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {isProcessing && (
             <div className="flex justify-start">
               <div className="px-3 py-2 bg-zinc-100 rounded-xl">
@@ -238,6 +290,7 @@ export function ChatBox({ entries = [], onEntryCreated, compact = false }: ChatB
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       )}
 

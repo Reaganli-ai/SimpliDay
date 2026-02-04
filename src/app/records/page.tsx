@@ -15,7 +15,7 @@ export default function RecordsPage() {
   const { language } = useI18n();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'week' | 'month' | 'all'>('week');
+  const [tab, setTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
   const [historyView, setHistoryView] = useState<'categorized' | 'raw'>('categorized');
 
   const fetchEntries = async () => {
@@ -52,11 +52,13 @@ export default function RecordsPage() {
 
   // 筛选数据
   const now = new Date();
+  const todayStr = now.toDateString();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const filteredEntries = entries.filter(e => {
     const date = new Date(e.created_at);
+    if (tab === 'today') return date.toDateString() === todayStr;
     if (tab === 'week') return date >= weekAgo;
     if (tab === 'month') return date >= monthAgo;
     return true;
@@ -87,6 +89,7 @@ export default function RecordsPage() {
     : '-';
 
   const tabLabels = {
+    today: language === 'zh' ? '今日' : 'Today',
     week: language === 'zh' ? '本周' : 'Week',
     month: language === 'zh' ? '本月' : 'Month',
     all: language === 'zh' ? '全部' : 'All',
@@ -106,7 +109,7 @@ export default function RecordsPage() {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* 时间筛选 */}
         <div className="flex gap-2">
-          {(['week', 'month', 'all'] as const).map((t) => (
+          {(['today', 'week', 'month', 'all'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -133,52 +136,44 @@ export default function RecordsPage() {
                 {language === 'zh' ? '修身' : 'Body'}
               </h2>
 
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 {/* 健身统计 */}
-                <div className="bg-white rounded-xl p-4 border border-zinc-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Dumbbell className="w-4 h-4 text-zinc-400" />
-                    <span className="text-sm font-medium text-zinc-700">
+                <div className="bg-white rounded-xl p-3 border border-zinc-100">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Dumbbell className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-xs font-medium text-zinc-500">
                       {language === 'zh' ? '健身' : 'Fitness'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-2xl font-semibold text-zinc-900">{fitnessEntries.length}</p>
-                      <p className="text-xs text-zinc-400">{language === 'zh' ? '次运动' : 'workouts'}</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold text-zinc-900">{totalCaloriesBurned}</p>
-                      <p className="text-xs text-zinc-400">{language === 'zh' ? '总消耗 kcal' : 'kcal burned'}</p>
-                    </div>
-                  </div>
+                  <p className="text-xl font-semibold text-zinc-900">
+                    {fitnessEntries.length}
+                    <span className="text-xs font-normal text-zinc-400 ml-1">
+                      {language === 'zh' ? '次' : 'x'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {language === 'zh' ? `消耗 ${totalCaloriesBurned} kcal` : `${totalCaloriesBurned} kcal burned`}
+                  </p>
                 </div>
 
                 {/* 饮食统计 */}
-                <div className="bg-white rounded-xl p-4 border border-zinc-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Utensils className="w-4 h-4 text-zinc-400" />
-                    <span className="text-sm font-medium text-zinc-700">
+                <div className="bg-white rounded-xl p-3 border border-zinc-100">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Utensils className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-xs font-medium text-zinc-500">
                       {language === 'zh' ? '饮食' : 'Diet'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-2xl font-semibold text-zinc-900">{dietEntries.length}</p>
-                      <p className="text-xs text-zinc-400">{language === 'zh' ? '餐' : 'meals'}</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold text-zinc-900">{totalCaloriesIn}</p>
-                      <p className="text-xs text-zinc-400">{language === 'zh' ? '总摄入 kcal' : 'kcal intake'}</p>
-                    </div>
-                  </div>
-                  {avgProtein > 0 && (
-                    <div className="mt-3 pt-3 border-t border-zinc-50">
-                      <p className="text-xs text-zinc-400">
-                        {language === 'zh' ? `平均蛋白质 ${avgProtein}g/餐` : `Avg protein ${avgProtein}g/meal`}
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-xl font-semibold text-zinc-900">
+                    {dietEntries.length}
+                    <span className="text-xs font-normal text-zinc-400 ml-1">
+                      {language === 'zh' ? '餐' : 'meals'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {language === 'zh' ? `摄入 ${totalCaloriesIn} kcal` : `${totalCaloriesIn} kcal intake`}
+                    {avgProtein > 0 && ` · ${avgProtein}g P`}
+                  </p>
                 </div>
               </div>
             </section>
