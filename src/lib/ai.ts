@@ -270,3 +270,39 @@ Return only JSON.`;
     };
   }
 }
+
+export async function reparseEntry(
+  type: string,
+  content: string
+): Promise<Record<string, unknown>> {
+  const prompt = `Extract structured data from this ${type} entry. Return ONLY a JSON object with the parsed data.
+
+Fields by type:
+- fitness: {"exercise":"...", "duration":number, "calories_burned":number, "intensity":"low|medium|high"}
+- diet: {"food":"...", "calories":number, "protein":number, "carbs":number, "fat":number}
+- mood: {"mood_score":number(1-10), "mood_keywords":["..."]}
+- energy: {"energy_level":number(1-10), "reason":"..."}
+
+Entry type: ${type}
+Entry text: ${content}
+
+Return ONLY the JSON object, starting with {`;
+
+  const result = await callClaudeSingle(prompt, content);
+
+  if (!result || !result.content) return {};
+
+  let text = result.content;
+  try {
+    JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) text = match[0];
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Dumbbell, Utensils, Heart, Zap, Flame, Clock, TrendingUp, FileText, Trash2, Edit3, X, Check } from 'lucide-react';
+import { Dumbbell, Utensils, Heart, Zap, Flame, Clock, TrendingUp, FileText, Trash2, Edit3, X, Check, Loader2 } from 'lucide-react';
 import { Entry, EntryType } from '@/types';
 import { useI18n } from '@/lib/i18n';
 import { deleteEntry, updateEntry } from '@/lib/supabase';
+import { reparseEntry } from '@/lib/ai';
 
 interface EntryListProps {
   entries: Entry[];
@@ -172,6 +173,7 @@ export function EntryList({ entries, editable = false, onUpdate }: EntryListProp
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (!confirm(language === 'zh' ? '确定要删除这条记录吗？' : 'Delete this entry?')) return;
@@ -193,12 +195,18 @@ export function EntryList({ entries, editable = false, onUpdate }: EntryListProp
   };
 
   const handleSaveEdit = async (entry: Entry) => {
+    setSaving(true);
     try {
-      await updateEntry(entry.id, editContent, entry.parsed_data);
+      // Re-parse the edited content to update structured data
+      const newParsedData = await reparseEntry(entry.type, editContent);
+      const mergedData = { ...entry.parsed_data, ...newParsedData };
+      await updateEntry(entry.id, editContent, mergedData);
       setEditingId(null);
       onUpdate?.();
     } catch (error) {
       console.error('Failed to update:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -278,10 +286,11 @@ export function EntryList({ entries, editable = false, onUpdate }: EntryListProp
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveEdit(entry)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm rounded-lg"
+                        disabled={saving}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white text-sm rounded-lg"
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        {language === 'zh' ? '保存' : 'Save'}
+                        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {saving ? (language === 'zh' ? '解析中...' : 'Parsing...') : (language === 'zh' ? '保存' : 'Save')}
                       </button>
                       <button
                         onClick={handleCancelEdit}
