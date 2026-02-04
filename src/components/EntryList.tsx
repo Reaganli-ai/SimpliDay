@@ -32,32 +32,32 @@ const typeColors: Record<EntryType, string> = {
 function FitnessData({ data, language }: { data: Record<string, unknown>; language: string }) {
   return (
     <div className="flex flex-wrap gap-3 mt-3">
-      {data.exercise && (
+      {data.exercise ? (
         <div className="flex items-center gap-1.5 text-sm">
           <Dumbbell className="w-4 h-4 text-blue-500" />
           <span className="text-zinc-700 dark:text-zinc-300">{String(data.exercise)}</span>
         </div>
-      )}
-      {data.duration && (
+      ) : null}
+      {data.duration ? (
         <div className="flex items-center gap-1.5 text-sm">
           <Clock className="w-4 h-4 text-zinc-400" />
-          <span className="text-zinc-600 dark:text-zinc-400">{data.duration} {language === 'zh' ? '分钟' : 'min'}</span>
+          <span className="text-zinc-600 dark:text-zinc-400">{String(data.duration)} {language === 'zh' ? '分钟' : 'min'}</span>
         </div>
-      )}
-      {data.calories_burned && (
+      ) : null}
+      {data.calories_burned ? (
         <div className="flex items-center gap-1.5 text-sm">
           <Flame className="w-4 h-4 text-orange-500" />
-          <span className="text-orange-600 dark:text-orange-400">-{data.calories_burned} kcal</span>
+          <span className="text-orange-600 dark:text-orange-400">-{String(data.calories_burned)} kcal</span>
         </div>
-      )}
-      {data.intensity && (
+      ) : null}
+      {data.intensity ? (
         <div className="flex items-center gap-1.5 text-sm">
           <TrendingUp className="w-4 h-4 text-emerald-500" />
           <span className="text-zinc-600 dark:text-zinc-400">
-            {language === 'zh' ? `${data.intensity}强度` : `${data.intensity} intensity`}
+            {language === 'zh' ? `${String(data.intensity)}强度` : `${String(data.intensity)} intensity`}
           </span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -66,33 +66,33 @@ function FitnessData({ data, language }: { data: Record<string, unknown>; langua
 function DietData({ data, language }: { data: Record<string, unknown>; language: string }) {
   return (
     <div className="mt-3 space-y-2">
-      {data.food && (
+      {data.food ? (
         <div className="flex items-center gap-1.5 text-sm">
           <Utensils className="w-4 h-4 text-orange-500" />
           <span className="text-zinc-700 dark:text-zinc-300">{String(data.food)}</span>
         </div>
-      )}
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        {data.calories && (
+        {data.calories ? (
           <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium">
-            🔥 {data.calories} kcal
+            🔥 {String(data.calories)} kcal
           </span>
-        )}
-        {data.protein && (
+        ) : null}
+        {data.protein ? (
           <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '蛋白质' : 'P'} {data.protein}g
+            {language === 'zh' ? '蛋白质' : 'P'} {String(data.protein)}g
           </span>
-        )}
-        {data.carbs && (
+        ) : null}
+        {data.carbs ? (
           <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '碳水' : 'C'} {data.carbs}g
+            {language === 'zh' ? '碳水' : 'C'} {String(data.carbs)}g
           </span>
-        )}
-        {data.fat && (
+        ) : null}
+        {data.fat ? (
           <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium">
-            {language === 'zh' ? '脂肪' : 'F'} {data.fat}g
+            {language === 'zh' ? '脂肪' : 'F'} {String(data.fat)}g
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -158,11 +158,11 @@ function EnergyData({ data, language }: { data: Record<string, unknown>; languag
           'text-red-600 dark:text-red-400'
         }`}>{level}/10</span>
       </div>
-      {data.reason && (
+      {data.reason ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {language === 'zh' ? '原因：' : 'Reason: '}{String(data.reason)}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
