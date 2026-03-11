@@ -1,14 +1,27 @@
 import { AISuggestion, Entry, UserProfile } from '@/types';
+import { supabase } from './supabase';
 
 interface ApiMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
+async function getAccessToken(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Not authenticated');
+  }
+  return session.access_token;
+}
+
 async function callClaude(systemPrompt: string, messages: ApiMessage[]) {
+  const token = await getAccessToken();
   const response = await fetch('/api/ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
     body: JSON.stringify({ systemPrompt, messages }),
   });
 
@@ -21,9 +34,13 @@ async function callClaude(systemPrompt: string, messages: ApiMessage[]) {
 
 // Legacy single-message call (for generateSuggestions)
 async function callClaudeSingle(systemPrompt: string, userMessage: string) {
+  const token = await getAccessToken();
   const response = await fetch('/api/ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
     body: JSON.stringify({ systemPrompt, userMessage }),
   });
 
