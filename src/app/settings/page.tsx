@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { getUserProfile, updateProfile } from '@/lib/supabase';
@@ -12,6 +13,7 @@ import { UserProfile, Gender, Goal, ActivityLevel } from '@/types';
 export default function SettingsPage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { language, setLanguage } = useI18n();
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -21,8 +23,8 @@ export default function SettingsPage() {
   const [age, setAge] = useState('');
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
-  const [goal, setGoal] = useState<Goal>('maintain');
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('light');
+  const [goal, setGoal] = useState<Goal | ''>('');
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | ''>('');
   const [lifestyle, setLifestyle] = useState('');
 
   useEffect(() => {
@@ -30,13 +32,18 @@ export default function SettingsPage() {
     const loadProfile = async () => {
       try {
         const profile = await getUserProfile(user.id);
+        // Redirect to onboarding if not completed
+        if (!profile || profile.onboarding_completed !== true) {
+          router.push('/onboarding');
+          return;
+        }
         if (profile) {
           setGender(profile.gender || '');
           setAge(profile.age ? String(profile.age) : '');
           setHeightCm(profile.height_cm ? String(profile.height_cm) : '');
           setWeightKg(profile.weight_kg ? String(profile.weight_kg) : '');
-          setGoal(profile.goal || 'maintain');
-          setActivityLevel(profile.activity_level || 'light');
+          setGoal(profile.goal || '');
+          setActivityLevel(profile.activity_level || '');
           setLifestyle(profile.lifestyle || '');
         }
       } catch (error) {
@@ -58,8 +65,8 @@ export default function SettingsPage() {
         age: age ? Number(age) : undefined,
         height_cm: heightCm ? Number(heightCm) : undefined,
         weight_kg: weightKg ? Number(weightKg) : undefined,
-        goal,
-        activity_level: activityLevel,
+        goal: goal || undefined,
+        activity_level: activityLevel || undefined,
         lifestyle: lifestyle || undefined,
       };
       await updateProfile(user.id, profileData);
@@ -199,7 +206,7 @@ export default function SettingsPage() {
                   {goalOptions.map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => setGoal(opt.value)}
+                      onClick={() => setGoal(opt.value as Goal)}
                       className={`flex-1 py-2 rounded-lg text-sm transition-colors ${
                         goal === opt.value
                           ? 'bg-zinc-900 text-white'
@@ -222,6 +229,11 @@ export default function SettingsPage() {
                   onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
                   className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                 >
+                  {activityLevel === '' && (
+                    <option value="">
+                      {language === 'zh' ? '请选择' : 'Select...'}
+                    </option>
+                  )}
                   {activityOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {language === 'zh' ? opt.labelZh : opt.labelEn}

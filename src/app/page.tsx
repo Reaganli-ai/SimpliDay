@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { getEntries, getUserProfile } from '@/lib/supabase';
@@ -13,6 +14,7 @@ import { Loader2, Dumbbell, Utensils, Heart, Zap, Flame, TrendingDown, TrendingU
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { language } = useI18n();
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,11 @@ export default function Home() {
         getEntries(user.id),
         getUserProfile(user.id),
       ]);
+      // Redirect to onboarding if not completed
+      if (!profileData || profileData.onboarding_completed !== true) {
+        router.push('/onboarding');
+        return;
+      }
       setEntries(entriesData as Entry[]);
       if (profileData) setProfile(profileData as UserProfile);
     } catch (error) {

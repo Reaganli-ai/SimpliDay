@@ -24,6 +24,7 @@ export interface UserProfile {
   activity_level?: ActivityLevel;
   lifestyle?: string;
   tdee?: number;
+  onboarding_completed?: boolean;
 }
 
 export interface User {
