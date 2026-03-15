@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { getEntries, getUserProfile } from '@/lib/supabase';
 import { AuthForm } from '@/components/AuthForm';
+import { OnboardingForm } from '@/components/OnboardingForm';
 import { BottomNav } from '@/components/BottomNav';
 import { ChatBox } from '@/components/ChatBox';
 import { Entry, UserProfile } from '@/types';
@@ -15,6 +16,7 @@ export default function Home() {
   const { language } = useI18n();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -25,7 +27,17 @@ export default function Home() {
         getUserProfile(user.id),
       ]);
       setEntries(entriesData as Entry[]);
-      if (profileData) setProfile(profileData as UserProfile);
+      if (profileData) {
+        setProfile(profileData as UserProfile);
+        // Check if profile is incomplete (new user needs onboarding)
+        const p = profileData as UserProfile;
+        if (!p.gender || !p.age || !p.height_cm || !p.weight_kg) {
+          setNeedsOnboarding(true);
+        }
+      } else {
+        // No profile at all — new user
+        setNeedsOnboarding(true);
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -51,6 +63,17 @@ export default function Home() {
 
   if (!user) {
     return <AuthForm />;
+  }
+
+  if (needsOnboarding) {
+    return (
+      <OnboardingForm
+        onComplete={() => {
+          setNeedsOnboarding(false);
+          fetchData(); // reload profile after onboarding
+        }}
+      />
+    );
   }
 
   // Today's data
